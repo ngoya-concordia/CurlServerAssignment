@@ -4,6 +4,7 @@ import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -45,18 +46,24 @@ public class HttpServer {
 				StringTokenizer parse = new StringTokenizer(line);
 				String method = parse.nextToken();
 				System.out.println("Method Type  " + method);
-				if (method.equalsIgnoreCase("GET")) {
-					res = parseGetRequest(parse);
-				} else {
-					res = parsePostRequest(parse);
-				}
 				while (!line.isEmpty()) {
 					System.out.println(line);
 					line = reader.readLine();
 
 				}
+				StringBuilder payload = new StringBuilder();
+				while (reader.ready()) {
+					payload.append((char) reader.read());
+				}
+				System.out.println("Pay LOad " + payload);
 
-				sendResponseToClient(out, dataOut, res);
+				if (method.equalsIgnoreCase("GET")) {
+					res = parseGetRequest(parse);
+				} else {
+					res = parsePostRequest(parse, payload.toString());
+				}
+
+				// sendResponseToClient(out, dataOut, res);
 
 			} catch (IOException ioe) {
 				System.err.println("Server error : " + ioe);
@@ -73,7 +80,7 @@ public class HttpServer {
 
 	}
 
-	private String parsePostRequest(StringTokenizer parse) {
+	private String parsePostRequest(StringTokenizer parse, String data) {
 		// TODO Auto-generated method stub
 		String fileRequested = parse.nextToken();
 
