@@ -2,6 +2,9 @@ package httpServerAssign;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
@@ -17,12 +20,14 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class HttpServer {
-	private ServerSocket socketServer;
+
 	private BufferedOutputStream dataOut = null;
 	private PrintWriter out = null;
-	private Socket clientSocket = null;
+	private Socket connect;
 	private static int portNo = 8080;
-	private static String serverFolder = "E://Concordia/Computer Networks/ServerData";
+	private Socket clientSocket = null;
+	private static ServerSocket socketServer;
+	private static String serverFolder = "E://nancy/Canada/5th sem/comp6461-Communication networks and protocols/Assignment/CurlServerAssignment/ServerFolder";
 
 	public HttpServer() throws IOException {
 		this(portNo, serverFolder);
@@ -32,65 +37,121 @@ public class HttpServer {
 		HttpServer.portNo = portNo;
 		if (serverFolder.trim().length() > 0)
 			HttpServer.serverFolder = serverFolder;
-		socketServer = new ServerSocket(HttpServer.portNo);
+
 		System.out.println("Listening for connection on port : " + HttpServer.portNo);
+		socketServer = new ServerSocket(HttpServer.portNo);
 		while (true) {
 			try {
+				
 				clientSocket = socketServer.accept();
-				String res = "";
-				InputStreamReader isr = new InputStreamReader(clientSocket.getInputStream());
-				BufferedReader reader = new BufferedReader(isr);
-				out = new PrintWriter(clientSocket.getOutputStream());
-				dataOut = new BufferedOutputStream(clientSocket.getOutputStream());
-				String line = reader.readLine();
-				StringTokenizer parse = new StringTokenizer(line);
-				String method = parse.nextToken();
-				System.out.println("Method Type  " + method);
-				while (!line.isEmpty()) {
-					System.out.println(line);
-					line = reader.readLine();
+//				HttpServer myServer = new HttpServer(clientSocket);
+				Thread thread = new Thread(new Runnable() {
 
-				}
-				StringBuilder payload = new StringBuilder();
-				while (reader.ready()) {
-					payload.append((char) reader.read());
-				}
-				System.out.println("Pay LOad " + payload);
+					@Override
+					public void run() {
+						// TODO Auto-generated method stub
+						try {
+							String res = "";
+							InputStreamReader isr = new InputStreamReader(clientSocket.getInputStream());
+							BufferedReader reader = new BufferedReader(isr);
+							out = new PrintWriter(clientSocket.getOutputStream());
+							dataOut = new BufferedOutputStream(clientSocket.getOutputStream());
+							String line = reader.readLine();
+							StringTokenizer parse = new StringTokenizer(line);
+							String method = parse.nextToken();
+							System.out.println("Method Type  " + method);
+							while (!line.isEmpty()) {
+								System.out.println(line);
+								line = reader.readLine();
 
-				if (method.equalsIgnoreCase("GET")) {
-					res = parseGetRequest(parse);
-				} else {
-					res = parsePostRequest(parse, payload.toString());
-				}
+							}
+							StringBuilder payload = new StringBuilder();
+							while (reader.ready()) {
+								payload.append((char) reader.read());
+							}
+							System.out.println("Pay LOad " + payload);
 
-				// sendResponseToClient(out, dataOut, res);
+							if (method.equalsIgnoreCase("GET")) {
+								res = parseGetRequest(parse);
+							} else {
+								res = parsePostRequest(parse, payload.toString());
+							}
+							
+							sendResponseToClient(out, dataOut, res);
+
+						} catch (IOException ioe) {
+							System.err.println("Server error : " + ioe);
+						} finally {
+							try {
+								dataOut.close();
+								clientSocket.close();
+							} catch (Exception e) {
+								System.err.println("Error closing stream : " + e.getMessage());
+							}
+						}
+					}
+				});
+				thread.start();
 
 			} catch (IOException ioe) {
-				System.err.println("Server error : " + ioe);
-			} finally {
-				try {
-					dataOut.close();
-					clientSocket.close();
-
-				} catch (Exception e) {
-					System.err.println("Error closing stream : " + e.getMessage());
-				}
-			}
+				System.err.println("Server error : " + ioe.getMessage());
+			} 
 		}
 
 	}
 
+	
+
 	private String parsePostRequest(StringTokenizer parse, String data) {
 		// TODO Auto-generated method stub
 		String fileRequested = parse.nextToken();
+		System.out.println("File Requested " + fileRequested);
+		System.out.println("Data " + data);
+		try (Stream<Path> walk = Files.walk(Paths.get(serverFolder + "/"))) {
 
-		return null;
+			List<String> fileList = walk.filter(Files::isRegularFile).map(x -> x.getFileName().toString())
+					.collect(Collectors.toList());
+			if (!fileRequested.trim().equalsIgnoreCase("/")) {
+				fileRequested = fileRequested.trim().substring(1);
+				if (fileList.contains(fileRequested)) {
+					System.out.println("overwriting the file ");
+					writeToFile(fileRequested, data);
+				} else {
+					System.out.println("creating the new file ");
+					writeToFile(fileRequested, data);
+				}
+			} else {
+
+				System.out.println("Send Error Response 404");
+
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		return data;
 	}
 
+	private static void writeToFile(String fileName, String data) throws IOException {
+		BufferedWriter writer = null;
+		try {
+			writer = new BufferedWriter(new FileWriter(new File(serverFolder + "/" + fileName)));
+			writer.write(data);
+		} catch (IOException ex) {
+			System.err.println("An IOException was caught!");
+			ex.printStackTrace();
+		} finally {
+			writer.close();
+		}
+	}
+
+	// httpc post -v -h Content-Type:application/json -h Connection:Keep-Alive -d
+	// '{"name":"game_name", "publisher":"PUBLISHER","pubished_in":"YEAR"}'
+	// "http://192.168.2.28/test.txt"
 	public String parseGetRequest(StringTokenizer parse) {
 		String fileRequested = parse.nextToken();
 		String result = "";
-//		try (Stream<Path> walk = Files.walk(Paths.get("./src/"))) {
+		// try (Stream<Path> walk = Files.walk(Paths.get("./src/"))) {
 		System.out.println("Server Folder " + serverFolder);
 		try (Stream<Path> walk = Files.walk(Paths.get(serverFolder + "/"))) {
 
@@ -99,7 +160,6 @@ public class HttpServer {
 			if (!fileRequested.trim().equalsIgnoreCase("/")) {
 				fileRequested = fileRequested.trim().substring(1);
 				if (fileList.contains(fileRequested)) {
-//					Stream<String> stream = Files.lines(Paths.get("./src/httpServerAssign/" + fileRequested));
 					Stream<String> stream = Files.lines(Paths.get(serverFolder + "/" + fileRequested));
 
 					fileList = stream.collect(Collectors.toList());
@@ -111,7 +171,7 @@ public class HttpServer {
 			} else {
 
 				result = fileList.toString();
-//				result.forEach(System.out::println);
+				// result.forEach(System.out::println);
 
 			}
 		} catch (IOException e) {

@@ -1,0 +1,1 @@
+{"name":"Nancy Goya", "publisher":"PUBLISHER","pubished_in":"YEAR"}
