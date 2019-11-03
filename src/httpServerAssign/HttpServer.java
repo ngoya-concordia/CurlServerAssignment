@@ -172,7 +172,7 @@ public class HttpServer {
 			} else {
 
 				result = fileList.toString();
-				status_code ="200";
+				status_code ="200 OK";
 			}
 			sendResponseToClient(out, dataOut, result,status_code);
 		} catch (IOException e) {
@@ -184,8 +184,7 @@ public class HttpServer {
 	public void sendResponseToClient(PrintWriter out, BufferedOutputStream dataOut, String httpResponse, String status_code)
 			throws IOException {
 		// JSONObject obj = new JSONObject();
-		out.println("HTTP/1.0");
-		out.println(status_code);
+		out.println("HTTP/1.0"+status_code);
 		out.println("Content-length: " + httpResponse.toString().length());
 		out.println(); // blank line
 		out.flush();
