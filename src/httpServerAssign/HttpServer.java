@@ -7,7 +7,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.ObjectInputStream;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -27,7 +26,7 @@ public class HttpServer {
 	private static int portNo = 8080;
 	private Socket clientSocket = null;
 	private static ServerSocket socketServer;
-	private static String serverFolder = "E://nancy/Canada/5th sem/comp6461-Communication networks and protocols/Assignment/CurlServerAssignment/ServerFolder";
+	private static String serverFolder = "E://Concordia/Computer Networks/Lab Assignment 1/CurlServerAssignment/ServerFolder";
 
 	public HttpServer() throws IOException {
 		this(portNo, serverFolder);
@@ -42,7 +41,7 @@ public class HttpServer {
 		socketServer = new ServerSocket(HttpServer.portNo);
 		while (true) {
 			try {
-				
+
 				clientSocket = socketServer.accept();
 //				HttpServer myServer = new HttpServer(clientSocket);
 				Thread thread = new Thread(new Runnable() {
@@ -76,7 +75,7 @@ public class HttpServer {
 							} else {
 								res = parsePostRequest(parse, payload.toString());
 							}
-							
+
 							sendResponseToClient(out, dataOut, res);
 
 						} catch (IOException ioe) {
@@ -95,12 +94,10 @@ public class HttpServer {
 
 			} catch (IOException ioe) {
 				System.err.println("Server error : " + ioe.getMessage());
-			} 
+			}
 		}
 
 	}
-
-	
 
 	private String parsePostRequest(StringTokenizer parse, String data) {
 		// TODO Auto-generated method stub
