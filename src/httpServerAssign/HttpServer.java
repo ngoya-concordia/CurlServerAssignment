@@ -76,8 +76,6 @@ public class HttpServer {
 								res = parsePostRequest(parse, payload.toString());
 							}
 
-							
-
 						} catch (IOException ioe) {
 							System.err.println("Server error : " + ioe);
 						} finally {
@@ -101,7 +99,7 @@ public class HttpServer {
 
 	private String parsePostRequest(StringTokenizer parse, String data) {
 		// TODO Auto-generated method stub
-		String status_code ="";
+		String status_code = "";
 		String fileRequested = parse.nextToken();
 		System.out.println("File Requested " + fileRequested);
 		System.out.println("Data " + data);
@@ -118,12 +116,12 @@ public class HttpServer {
 					System.out.println("creating the new file ");
 					writeToFile(fileRequested, data);
 				}
+				sendResponseToClient(out, dataOut, data, "200 OK");
 			} else {
-				status_code ="400";
 				System.out.println("Invalid request");
-
+				sendResponseToClient(out, dataOut, "", "400 Bad Request");
 			}
-			sendResponseToClient(out, dataOut, data,status_code);
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -150,7 +148,7 @@ public class HttpServer {
 	public String parseGetRequest(StringTokenizer parse) {
 		String fileRequested = parse.nextToken();
 		String result = "";
-		String status_code ="";
+		String status_code = "";
 		System.out.println("Server Folder " + serverFolder);
 		try (Stream<Path> walk = Files.walk(Paths.get(serverFolder + "/"))) {
 
@@ -163,28 +161,28 @@ public class HttpServer {
 
 					fileList = stream.collect(Collectors.toList());
 					result = fileList.toString();
-					status_code ="200 OK";
+					status_code = "200 OK";
 				} else {
 					System.out.println("Send Error Response 404");
-					status_code ="404 Not Found";
+					status_code = "404 Not Found";
 				}
 				System.out.println("\n\n fileRequested " + fileRequested);
 			} else {
 
 				result = fileList.toString();
-				status_code ="200 OK";
+				status_code = "200 OK";
 			}
-			sendResponseToClient(out, dataOut, result,status_code);
+			sendResponseToClient(out, dataOut, result, status_code);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		return result;
 	}
 
-	public void sendResponseToClient(PrintWriter out, BufferedOutputStream dataOut, String httpResponse, String status_code)
-			throws IOException {
+	public void sendResponseToClient(PrintWriter out, BufferedOutputStream dataOut, String httpResponse,
+			String status_code) throws IOException {
 		// JSONObject obj = new JSONObject();
-		out.println("HTTP/1.0"+status_code);
+		out.println("HTTP/1.0 " + status_code);
 		out.println("Content-length: " + httpResponse.toString().length());
 		out.println(); // blank line
 		out.flush();
