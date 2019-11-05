@@ -27,7 +27,7 @@ public class HttpServer {
 	private Socket clientSocket = null;
 	private static ServerSocket socketServer;
 	private static String serverFolder = "E://Concordia/Computer Networks/Lab Assignment 1/CurlServerAssignment/ServerFolder";
-
+	
 	public HttpServer() throws IOException {
 		this(portNo, serverFolder);
 	}
@@ -129,10 +129,37 @@ public class HttpServer {
 		return data;
 	}
 
-	private synchronized static void writeToFile(String fileName, String data) throws IOException {
+	private synchronized static void writeToFile(String path, String data) throws IOException {
 		BufferedWriter writer = null;
 		try {
-			writer = new BufferedWriter(new FileWriter(new File(serverFolder + "/" + fileName)));
+			String fileName = "";
+			String[] arr = path.split("/");
+			if (arr.length > 0) {
+				fileName = arr[arr.length - 1];
+				path = path.replace(fileName, "");
+				System.out.println("Check Path : " + path);
+				
+				if (path.trim().length() > 0 && path.trim().charAt(path.trim().length() - 1) == '/') {
+					path = path.substring(0, path.length() - 1);
+				}
+			}
+
+			Path pathVal = null;
+			String newPath = "";
+			if (!path.trim().isEmpty())
+				newPath = serverFolder + "/" + path;
+			else
+				newPath = serverFolder;
+
+			pathVal = Paths.get(newPath);
+			if (!Files.exists(pathVal)) {
+
+				Files.createDirectory(pathVal);
+				System.out.println("Directory created");
+			} else {
+				System.out.println("Directory already exists");
+			}
+			writer = new BufferedWriter(new FileWriter(new File(newPath + "/" + fileName)));
 			writer.write(data);
 		} catch (IOException ex) {
 			System.err.println("An IOException was caught!");
@@ -147,6 +174,7 @@ public class HttpServer {
 	// "http://192.168.2.28/test.txt"
 	public String parseGetRequest(StringTokenizer parse) {
 		String fileRequested = parse.nextToken();
+		System.out.println(fileRequested);
 		String result = "";
 		String status_code = "";
 		System.out.println("Server Folder " + serverFolder);
