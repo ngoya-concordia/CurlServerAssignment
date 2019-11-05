@@ -26,8 +26,9 @@ public class HttpServer {
 	private static int portNo = 8080;
 	private Socket clientSocket = null;
 	private static ServerSocket socketServer;
-	private static String serverFolder = "E://Concordia/Computer Networks/Lab Assignment 1/CurlServerAssignment/ServerFolder";
-	
+
+	private static String serverFolder = "E:/nancy/Canada/5th sem/comp6461-Communication networks and protocols/Assignment/CurlServerAssignment/ServerFolder";
+
 	public HttpServer() throws IOException {
 		this(portNo, serverFolder);
 	}
@@ -58,12 +59,24 @@ public class HttpServer {
 							String line = reader.readLine();
 							StringTokenizer parse = new StringTokenizer(line);
 							String method = parse.nextToken();
+							String contentType="";
+							String contentDisposition="";
 							System.out.println("Method Type  " + method);
 							while (!line.isEmpty()) {
 								System.out.println(line);
 								line = reader.readLine();
+								if(line.toLowerCase().contains("content-type"))
+								{
+									contentType =line.substring(line.indexOf(":"),line.length());
+								}
+								if(line.toLowerCase().contains("content-disposition"))
+								{
+									contentDisposition =line.substring(line.indexOf(":"),line.length());
+								}
 
 							}
+							System.out.println("content Type request  " + contentType);
+							System.out.println("content Disposition request " + contentDisposition);
 							StringBuilder payload = new StringBuilder();
 							while (reader.ready()) {
 								payload.append((char) reader.read());
@@ -71,9 +84,9 @@ public class HttpServer {
 							System.out.println("Pay LOad " + payload);
 
 							if (method.equalsIgnoreCase("GET")) {
-								res = parseGetRequest(parse);
+								res = parseGetRequest(parse,contentType,contentDisposition);
 							} else {
-								res = parsePostRequest(parse, payload.toString());
+								res = parsePostRequest(parse, payload.toString(),contentType,contentDisposition);
 							}
 
 						} catch (IOException ioe) {
@@ -97,7 +110,7 @@ public class HttpServer {
 
 	}
 
-	private String parsePostRequest(StringTokenizer parse, String data) {
+	private String parsePostRequest(StringTokenizer parse, String data,String contentType,String contentDisposition) {
 		// TODO Auto-generated method stub
 		String status_code = "";
 		String fileRequested = parse.nextToken();
@@ -116,10 +129,10 @@ public class HttpServer {
 					System.out.println("creating the new file ");
 					writeToFile(fileRequested, data);
 				}
-				sendResponseToClient(out, dataOut, data, "200 OK");
+				sendResponseToClient(out, dataOut, data, "200 OK",contentType,contentDisposition);
 			} else {
 				System.out.println("Invalid request");
-				sendResponseToClient(out, dataOut, "", "400 Bad Request");
+				sendResponseToClient(out, dataOut, "", "400 Bad Request",contentType,contentDisposition);
 			}
 
 		} catch (IOException e) {
@@ -172,7 +185,7 @@ public class HttpServer {
 	// httpc post -v -h Content-Type:application/json -h Connection:Keep-Alive -d
 	// '{"name":"game_name", "publisher":"PUBLISHER","pubished_in":"YEAR"}'
 	// "http://192.168.2.28/test.txt"
-	public String parseGetRequest(StringTokenizer parse) {
+	public String parseGetRequest(StringTokenizer parse, String contentType,String contentDisposition) {
 		String fileRequested = parse.nextToken();
 		System.out.println(fileRequested);
 		String result = "";
@@ -200,7 +213,7 @@ public class HttpServer {
 				result = fileList.toString();
 				status_code = "200 OK";
 			}
-			sendResponseToClient(out, dataOut, result, status_code);
+			sendResponseToClient(out, dataOut, result, status_code,contentType,contentDisposition);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -208,10 +221,18 @@ public class HttpServer {
 	}
 
 	public void sendResponseToClient(PrintWriter out, BufferedOutputStream dataOut, String httpResponse,
-			String status_code) throws IOException {
+			String status_code, String contentType,String contentDisposition) throws IOException {
 		// JSONObject obj = new JSONObject();
 		out.println("HTTP/1.0 " + status_code);
 		out.println("Content-length: " + httpResponse.toString().length());
+		if(!contentType.isEmpty())
+		{
+		out.println("Content-Type: " + contentType);	
+		}
+		if(!contentDisposition.isEmpty())
+		{
+		out.println("Content-Disposition: " + contentDisposition);	
+		}
 		out.println(); // blank line
 		out.flush();
 

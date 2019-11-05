@@ -6,7 +6,7 @@ public class MainDriver {
 
 	private static boolean isDebug = false;
 	private static int portNo;
-	private static String serverFolder = "E://Concordia/Computer Networks/Lab Assignment 1/CurlServerAssignment/ServerFolder";
+	private static String serverFolder = "E:/nancy/Canada/5th sem/comp6461-Communication networks and protocols/Assignment/CurlServerAssignment/ServerFolder";
 	private static Scanner scanner = new Scanner(System.in);
 
 	public static void main(String[] args) {
