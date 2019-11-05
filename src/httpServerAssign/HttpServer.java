@@ -26,27 +26,28 @@ public class HttpServer {
 	private static int portNo = 8080;
 	private Socket clientSocket = null;
 	private static ServerSocket socketServer;
+	private static String serverFolder = "E://Concordia/Computer Networks/Lab Assignment 1/CurlServerAssignment/ServerFolder";
 
-	private static String serverFolder = "E:/nancy/Canada/5th sem/comp6461-Communication networks and protocols/Assignment/CurlServerAssignment/ServerFolder";
+	private static boolean isDebug = false;
 
 	public HttpServer() throws IOException {
-		this(portNo, serverFolder);
+		this(portNo, serverFolder, isDebug);
 	}
 
-	public HttpServer(int portNo, String serverFolder) throws IOException {
-		HttpServer.portNo = portNo;
+	public HttpServer(int portNo, String serverFolder, boolean isDebug) throws IOException {
+
+		if (portNo > 0)
+			HttpServer.portNo = portNo;
 		if (serverFolder.trim().length() > 0)
 			HttpServer.serverFolder = serverFolder;
-
+		if (isDebug)
+			HttpServer.isDebug = true;
 		System.out.println("Listening for connection on port : " + HttpServer.portNo);
 		socketServer = new ServerSocket(HttpServer.portNo);
 		while (true) {
 			try {
-
 				clientSocket = socketServer.accept();
-				// HttpServer myServer = new HttpServer(clientSocket);
 				Thread thread = new Thread(new Runnable() {
-
 					@Override
 					public void run() {
 						// TODO Auto-generated method stub
@@ -61,9 +62,9 @@ public class HttpServer {
 							String method = parse.nextToken();
 							String contentType = "";
 							String contentDisposition = "";
-							System.out.println("Method Type  " + method);
+							log("Method Type  " + method);
 							while (!line.isEmpty()) {
-								System.out.println(line);
+								log(line);
 								line = reader.readLine();
 								if (line.toLowerCase().contains("content-type")) {
 									contentType = line.substring(line.indexOf(":") + 1, line.length());
@@ -79,7 +80,7 @@ public class HttpServer {
 							while (reader.ready()) {
 								payload.append((char) reader.read());
 							}
-							System.out.println("Pay LOad " + payload);
+							log("Pay LOad " + payload);
 
 							if (method.equalsIgnoreCase("GET")) {
 								res = parseGetRequest(parse, contentType.trim(), contentDisposition);
@@ -89,13 +90,13 @@ public class HttpServer {
 							}
 
 						} catch (IOException ioe) {
-							System.err.println("Server error : " + ioe);
+							log("Server error : " + ioe);
 						} finally {
 							try {
 								dataOut.close();
 								clientSocket.close();
 							} catch (Exception e) {
-								System.err.println("Error closing stream : " + e.getMessage());
+								log("Error closing stream : " + e.getMessage());
 							}
 						}
 					}
@@ -103,7 +104,7 @@ public class HttpServer {
 				thread.start();
 
 			} catch (IOException ioe) {
-				System.err.println("Server error : " + ioe.getMessage());
+				log("Server error : " + ioe.getMessage());
 			}
 		}
 
@@ -122,16 +123,16 @@ public class HttpServer {
 			if (!fileRequested.trim().equalsIgnoreCase("/")) {
 				fileRequested = fileRequested.trim().substring(1);
 				if (fileList.contains(fileRequested)) {
-					System.out.println("overwriting the file ");
+					log("overwriting the file ");
 					writeToFile(fileRequested, data);
 				} else {
-					System.out.println("creating the new file ");
+					log("creating the new file ");
 					writeToFile(fileRequested, data);
 				}
 				sendResponseToClient(out, dataOut, data, "200 OK", "", "");
 			} else {
-				System.out.println("Invalid request");
 				sendResponseToClient(out, dataOut, "", "400 Bad Request", "", "");
+				log("Invalid request");
 			}
 
 		} catch (IOException e) {
@@ -149,32 +150,38 @@ public class HttpServer {
 			if (arr.length > 0) {
 				fileName = arr[arr.length - 1];
 				path = path.replace(fileName, "");
-				System.out.println("Check Path : " + path);
 
+				log("Check Path : " + path);
 				if (path.trim().length() > 0 && path.trim().charAt(path.trim().length() - 1) == '/') {
 					path = path.substring(0, path.length() - 1);
 				}
 			}
 
 			Path pathVal = null;
+			Path originalPath = Paths.get(serverFolder);
 			String newPath = "";
 			if (!path.trim().isEmpty())
 				newPath = serverFolder + "/" + path;
 			else
 				newPath = serverFolder;
-
 			pathVal = Paths.get(newPath);
+
+			if (Files.isSameFile(originalPath, pathVal))
+				System.out.println("Paths are same.");
+			else
+				System.out.println("Paths are unequal.");
+
 			if (!Files.exists(pathVal)) {
 
 				Files.createDirectory(pathVal);
-				System.out.println("Directory created");
+				log("Directory created");
 			} else {
-				System.out.println("Directory already exists");
+				log("Directory already exists");
 			}
 			writer = new BufferedWriter(new FileWriter(new File(newPath + "/" + fileName)));
 			writer.write(data);
 		} catch (IOException ex) {
-			System.err.println("An IOException was caught!");
+			log("An IOException was caught!");
 			ex.printStackTrace();
 		} finally {
 			writer.close();
@@ -184,20 +191,53 @@ public class HttpServer {
 	// httpc post -v -h Content-Type:application/json -h Connection:Keep-Alive -d
 	// '{"name":"game_name", "publisher":"PUBLISHER","pubished_in":"YEAR"}'
 	// "http://192.168.2.28/test.txt"
-	public String parseGetRequest(StringTokenizer parse, String contentType, String contentDisposition) {
-		String fileRequested = parse.nextToken();
-		System.out.println(fileRequested);
+	public String parseGetRequest(StringTokenizer parse, String contentType, String contentDisposition) throws IOException {
+		String path = parse.nextToken();
+		log(path);
 		String result = "";
 		String status_code = "";
-		System.out.println("Server Folder " + serverFolder);
+		String fileName = "";
+		String[] arr = path.split("/");
+		if (arr.length > 0) {
+			fileName = arr[arr.length - 1];
+			path = path.replace(fileName, "");
+
+			log("Check Path : " + path);
+			if (path.trim().length() > 0 && path.trim().charAt(path.trim().length() - 1) == '/') {
+				path = path.substring(0, path.length() - 1);
+			}
+		}
+
+		Path pathVal = null;
+		Path originalPath = Paths.get(serverFolder);
+		String newPath = "";
+		if (!path.trim().isEmpty())
+			newPath = serverFolder + "/" + path;
+		else
+			newPath = serverFolder;
+		pathVal = Paths.get(newPath);
+
+		if (Files.isSameFile(originalPath, pathVal))
+			System.out.println("Paths are same.");
+		else
+			System.out.println("Paths are unequal.");
+
+		if (!Files.exists(pathVal)) {
+
+			Files.createDirectory(pathVal);
+			log("Directory created");
+		} else {
+			log("Directory already exists");
+		}
 		try (Stream<Path> walk = Files.walk(Paths.get(serverFolder + "/"))) {
+			log("Accessing Server Folder " + serverFolder);
 
 			List<String> fileList = walk.filter(Files::isRegularFile).map(x -> x.getFileName().toString())
 					.collect(Collectors.toList());
-			if (!fileRequested.trim().equalsIgnoreCase("/")) {
-				fileRequested = fileRequested.trim().substring(1);
+			if (!fileName.trim().equalsIgnoreCase("/")) {
+				fileName = fileName.trim().substring(1);
 				String ext = "";
-				if (fileRequested.indexOf(".") == -1) {
+				if (fileName.indexOf(".") == -1) {
 					System.out.println("contentType ***** " + contentType);
 
 					if (contentType.equalsIgnoreCase("application/json"))
@@ -215,20 +255,20 @@ public class HttpServer {
 					if (contentType.equalsIgnoreCase("text/csv"))
 						ext = "csv";
 
-					fileRequested = fileRequested + "." + ext;
-					System.out.println("fileRequested ***** " + fileRequested);
+					fileName = fileName + "." + ext;
+					System.out.println("fileRequested ***** " + fileName);
 				}
 
-				if (fileList.contains(fileRequested)) {
-					Stream<String> stream = Files.lines(Paths.get(serverFolder + "/" + fileRequested));
-
+				if (fileList.contains(fileName)) {
+					Stream<String> stream = Files.lines(Paths.get(serverFolder + "/" + fileName));
 					fileList = stream.collect(Collectors.toList());
 					result = fileList.toString();
 					status_code = "200 OK";
 				} else {
-					System.out.println("Send Error Response 404");
+					log("Send Error Response 404");
 					status_code = "404 Not Found";
 				}
+				log("\n\n fileRequested " + fileName);
 			} else {
 
 				result = fileList.toString();
@@ -243,7 +283,7 @@ public class HttpServer {
 
 	public void sendResponseToClient(PrintWriter out, BufferedOutputStream dataOut, String httpResponse,
 			String status_code, String contentType, String contentDisposition) throws IOException {
-		// JSONObject obj = new JSONObject();
+		
 		out.println("HTTP/1.0 " + status_code);
 		out.println("Content-length: " + httpResponse.toString().length());
 
@@ -258,6 +298,11 @@ public class HttpServer {
 
 		dataOut.write(httpResponse.toString().getBytes("UTF-8"));
 		dataOut.flush();
+	}
+
+	static void log(String logMessage) {
+		if (HttpServer.isDebug)
+			System.out.println(logMessage);
 	}
 
 }
