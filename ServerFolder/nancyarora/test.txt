@@ -1,1 +1,0 @@
-{"name":"game_name", "publisher":"PUBLISHER","pubished_in":"YEAR"}

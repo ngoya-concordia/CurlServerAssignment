@@ -44,7 +44,7 @@ public class HttpServer {
 			try {
 
 				clientSocket = socketServer.accept();
-//				HttpServer myServer = new HttpServer(clientSocket);
+				// HttpServer myServer = new HttpServer(clientSocket);
 				Thread thread = new Thread(new Runnable() {
 
 					@Override
@@ -59,19 +59,17 @@ public class HttpServer {
 							String line = reader.readLine();
 							StringTokenizer parse = new StringTokenizer(line);
 							String method = parse.nextToken();
-							String contentType="";
-							String contentDisposition="";
+							String contentType = "";
+							String contentDisposition = "";
 							System.out.println("Method Type  " + method);
 							while (!line.isEmpty()) {
 								System.out.println(line);
 								line = reader.readLine();
-								if(line.toLowerCase().contains("content-type"))
-								{
-									contentType =line.substring(line.indexOf(":"),line.length());
+								if (line.toLowerCase().contains("content-type")) {
+									contentType = line.substring(line.indexOf(":") + 1, line.length());
 								}
-								if(line.toLowerCase().contains("content-disposition"))
-								{
-									contentDisposition =line.substring(line.indexOf(":"),line.length());
+								if (line.toLowerCase().contains("content-disposition")) {
+									contentDisposition = line.substring(line.indexOf(":") + 1, line.length());
 								}
 
 							}
@@ -84,9 +82,10 @@ public class HttpServer {
 							System.out.println("Pay LOad " + payload);
 
 							if (method.equalsIgnoreCase("GET")) {
-								res = parseGetRequest(parse,contentType,contentDisposition);
+								res = parseGetRequest(parse, contentType.trim(), contentDisposition);
 							} else {
-								res = parsePostRequest(parse, payload.toString(),contentType,contentDisposition);
+								res = parsePostRequest(parse, payload.toString(), contentType.trim(),
+										contentDisposition);
 							}
 
 						} catch (IOException ioe) {
@@ -110,7 +109,7 @@ public class HttpServer {
 
 	}
 
-	private String parsePostRequest(StringTokenizer parse, String data,String contentType,String contentDisposition) {
+	private String parsePostRequest(StringTokenizer parse, String data, String contentType, String contentDisposition) {
 		// TODO Auto-generated method stub
 		String status_code = "";
 		String fileRequested = parse.nextToken();
@@ -129,10 +128,10 @@ public class HttpServer {
 					System.out.println("creating the new file ");
 					writeToFile(fileRequested, data);
 				}
-				sendResponseToClient(out, dataOut, data, "200 OK",contentType,contentDisposition);
+				sendResponseToClient(out, dataOut, data, "200 OK", "", "");
 			} else {
 				System.out.println("Invalid request");
-				sendResponseToClient(out, dataOut, "", "400 Bad Request",contentType,contentDisposition);
+				sendResponseToClient(out, dataOut, "", "400 Bad Request", "", "");
 			}
 
 		} catch (IOException e) {
@@ -151,7 +150,7 @@ public class HttpServer {
 				fileName = arr[arr.length - 1];
 				path = path.replace(fileName, "");
 				System.out.println("Check Path : " + path);
-				
+
 				if (path.trim().length() > 0 && path.trim().charAt(path.trim().length() - 1) == '/') {
 					path = path.substring(0, path.length() - 1);
 				}
@@ -185,7 +184,7 @@ public class HttpServer {
 	// httpc post -v -h Content-Type:application/json -h Connection:Keep-Alive -d
 	// '{"name":"game_name", "publisher":"PUBLISHER","pubished_in":"YEAR"}'
 	// "http://192.168.2.28/test.txt"
-	public String parseGetRequest(StringTokenizer parse, String contentType,String contentDisposition) {
+	public String parseGetRequest(StringTokenizer parse, String contentType, String contentDisposition) {
 		String fileRequested = parse.nextToken();
 		System.out.println(fileRequested);
 		String result = "";
@@ -197,6 +196,29 @@ public class HttpServer {
 					.collect(Collectors.toList());
 			if (!fileRequested.trim().equalsIgnoreCase("/")) {
 				fileRequested = fileRequested.trim().substring(1);
+				String ext = "";
+				if (fileRequested.indexOf(".") == -1) {
+					System.out.println("contentType ***** " + contentType);
+
+					if (contentType.equalsIgnoreCase("application/json"))
+						ext = "json";
+					if (contentType.equalsIgnoreCase("application/xml") || contentType.equalsIgnoreCase("text/xml"))
+						ext = "xml";
+					if (contentType.equalsIgnoreCase("application/pdf"))
+						ext = "pdf";
+					if (contentType.equalsIgnoreCase("text/html"))
+						ext = "html";
+					if (contentType.equalsIgnoreCase("text/plain"))
+						ext = "txt";
+					if (contentType.equalsIgnoreCase("text/css"))
+						ext = "css";
+					if (contentType.equalsIgnoreCase("text/csv"))
+						ext = "csv";
+
+					fileRequested = fileRequested + "." + ext;
+					System.out.println("fileRequested ***** " + fileRequested);
+				}
+
 				if (fileList.contains(fileRequested)) {
 					Stream<String> stream = Files.lines(Paths.get(serverFolder + "/" + fileRequested));
 
@@ -207,13 +229,12 @@ public class HttpServer {
 					System.out.println("Send Error Response 404");
 					status_code = "404 Not Found";
 				}
-				System.out.println("\n\n fileRequested " + fileRequested);
 			} else {
 
 				result = fileList.toString();
 				status_code = "200 OK";
 			}
-			sendResponseToClient(out, dataOut, result, status_code,contentType,contentDisposition);
+			sendResponseToClient(out, dataOut, result, status_code, contentType, contentDisposition);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -221,17 +242,16 @@ public class HttpServer {
 	}
 
 	public void sendResponseToClient(PrintWriter out, BufferedOutputStream dataOut, String httpResponse,
-			String status_code, String contentType,String contentDisposition) throws IOException {
+			String status_code, String contentType, String contentDisposition) throws IOException {
 		// JSONObject obj = new JSONObject();
 		out.println("HTTP/1.0 " + status_code);
 		out.println("Content-length: " + httpResponse.toString().length());
-		if(!contentType.isEmpty())
-		{
-		out.println("Content-Type: " + contentType);	
+
+		if (!contentType.isEmpty()) {
+			out.println("Content-Type: " + contentType);
 		}
-		if(!contentDisposition.isEmpty())
-		{
-		out.println("Content-Disposition: " + contentDisposition);	
+		if (!contentDisposition.isEmpty()) {
+			out.println("Content-Disposition: " + contentDisposition);
 		}
 		out.println(); // blank line
 		out.flush();

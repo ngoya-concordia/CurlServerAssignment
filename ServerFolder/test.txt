@@ -1,1 +1,1 @@
-{"name":"game_name", "publisher":"PUBLISHER","pubished_in":"YEAR"}
+{"name":"Rohit GUpta", "publisher":"PUBLISHER","pubished_in":"YEAR"}
