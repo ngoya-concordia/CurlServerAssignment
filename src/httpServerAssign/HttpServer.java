@@ -83,7 +83,7 @@ public class HttpServer {
 							log("Pay LOad " + payload);
 
 							if (method.equalsIgnoreCase("GET")) {
-								res = parseGetRequest(parse, contentType.trim(), contentDisposition);
+								parseGetRequest(parse, contentType.trim(), contentDisposition);
 							} else {
 								res = parsePostRequest(parse, payload.toString(), contentType.trim(),
 										contentDisposition);
@@ -110,67 +110,51 @@ public class HttpServer {
 
 	}
 
-	private String parsePostRequest(StringTokenizer parse, String data, String contentType, String contentDisposition) {
+	private String parsePostRequest(StringTokenizer parse, String data, String contentType, String contentDisposition)
+			throws IOException {
 		// TODO Auto-generated method stub
-		String status_code = "";
-		String fileRequested = parse.nextToken();
-		System.out.println("File Requested " + fileRequested);
+		String path = parse.nextToken();
+		System.out.println("File Requested " + path);
 		System.out.println("Data " + data);
-		try (Stream<Path> walk = Files.walk(Paths.get(serverFolder + "/"))) {
+		String fileName = "";
+		String[] arr = path.split("/");
+		boolean isValid = false;
+		if (arr.length > 0) {
+			fileName = arr[arr.length - 1];
+			path = path.replace(fileName, "");
 
-			List<String> fileList = walk.filter(Files::isRegularFile).map(x -> x.getFileName().toString())
-					.collect(Collectors.toList());
-			if (!fileRequested.trim().equalsIgnoreCase("/")) {
-				fileRequested = fileRequested.trim().substring(1);
-				if (fileList.contains(fileRequested)) {
-					log("overwriting the file ");
-					writeToFile(fileRequested, data);
-				} else {
-					log("creating the new file ");
-					writeToFile(fileRequested, data);
-				}
-				sendResponseToClient(out, dataOut, data, "200 OK", "", "");
-			} else {
-				sendResponseToClient(out, dataOut, "", "400 Bad Request", "", "");
-				log("Invalid request");
+			log("Check Path : " + path);
+			if (path.trim().length() > 0 && path.trim().charAt(path.trim().length() - 1) == '/') {
+				path = path.substring(0, path.length() - 1);
 			}
-
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 
-		return data;
-	}
+		Path pathVal = null;
+		Path originalPath = Paths.get(serverFolder);
+		String newPath = "";
+		if (!path.trim().isEmpty())
+			newPath = serverFolder + "/" + path;
+		else
+			newPath = serverFolder;
+		pathVal = Paths.get(newPath);
 
-	private synchronized static void writeToFile(String path, String data) throws IOException {
-		BufferedWriter writer = null;
-		try {
-			String fileName = "";
-			String[] arr = path.split("/");
-			if (arr.length > 0) {
-				fileName = arr[arr.length - 1];
-				path = path.replace(fileName, "");
+		System.out.println("NEW PATH VAL " + pathVal.normalize());
+		System.out.println("ORIGINAL PATH VAL " + originalPath.normalize());
 
-				log("Check Path : " + path);
-				if (path.trim().length() > 0 && path.trim().charAt(path.trim().length() - 1) == '/') {
-					path = path.substring(0, path.length() - 1);
-				}
-			}
+//		if (Files.isSameFile(originalPath, pathVal)) {
+//			System.out.println("Paths are same.");
+//			isValid = true;
+//		}
 
-			Path pathVal = null;
-			Path originalPath = Paths.get(serverFolder);
-			String newPath = "";
-			if (!path.trim().isEmpty())
-				newPath = serverFolder + "/" + path;
-			else
-				newPath = serverFolder;
-			pathVal = Paths.get(newPath);
-
-			if (Files.isSameFile(originalPath, pathVal))
-				System.out.println("Paths are same.");
-			else
-				System.out.println("Paths are unequal.");
-
+//		else {
+		if (pathVal.normalize().toString().contains(originalPath.normalize().toString())) {
+			isValid = true;
+		} else {
+			isValid = false;
+		}
+//			System.out.println("Paths are unequal.");
+//		}
+		if (isValid) {
 			if (!Files.exists(pathVal)) {
 
 				Files.createDirectory(pathVal);
@@ -178,7 +162,44 @@ public class HttpServer {
 			} else {
 				log("Directory already exists");
 			}
-			writer = new BufferedWriter(new FileWriter(new File(newPath + "/" + fileName)));
+
+			try (Stream<Path> walk = Files.walk(Paths.get(pathVal.normalize().toString() + "/"))) {
+
+				List<String> fileList = walk.filter(Files::isRegularFile).map(x -> x.getFileName().toString())
+						.collect(Collectors.toList());
+				if (!fileName.trim().isEmpty()) {
+					if (fileList.contains(fileName)) {
+						log("overwriting the file ");
+						writeToFile(newPath, fileName, data);
+					} else {
+						log("creating the new file ");
+						writeToFile(newPath, fileName, data);
+					}
+					sendResponseToClient(out, dataOut, data, "200 OK", "", "");
+				} else {
+					sendResponseToClient(out, dataOut, "", "400 Bad Request", "", "");
+					log("Invalid request");
+				}
+
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
+		} else {
+			sendResponseToClient(out, dataOut, "", "401 Access Denied", "", "");
+			log("Access Denied");
+
+		}
+
+		return data;
+	}
+
+	private synchronized static void writeToFile(String path, String fileName, String data) throws IOException {
+
+		BufferedWriter writer = null;
+		try {
+
+			writer = new BufferedWriter(new FileWriter(new File(path + "/" + fileName)));
 			writer.write(data);
 		} catch (IOException ex) {
 			log("An IOException was caught!");
@@ -191,7 +212,9 @@ public class HttpServer {
 	// httpc post -v -h Content-Type:application/json -h Connection:Keep-Alive -d
 	// '{"name":"game_name", "publisher":"PUBLISHER","pubished_in":"YEAR"}'
 	// "http://192.168.2.28/test.txt"
-	public String parseGetRequest(StringTokenizer parse, String contentType, String contentDisposition) throws IOException {
+	public void parseGetRequest(StringTokenizer parse, String contentType, String contentDisposition)
+			throws IOException {
+		boolean isValid = false;
 		String path = parse.nextToken();
 		log(path);
 		String result = "";
@@ -217,25 +240,26 @@ public class HttpServer {
 			newPath = serverFolder;
 		pathVal = Paths.get(newPath);
 
-		if (Files.isSameFile(originalPath, pathVal))
-			System.out.println("Paths are same.");
-		else
-			System.out.println("Paths are unequal.");
-
-		if (!Files.exists(pathVal)) {
-
-			Files.createDirectory(pathVal);
-			log("Directory created");
+		if (pathVal.normalize().toString().contains(originalPath.normalize().toString())) {
+			isValid = true;
 		} else {
-			log("Directory already exists");
+			isValid = false;
 		}
-		try (Stream<Path> walk = Files.walk(Paths.get(serverFolder + "/"))) {
+		if (isValid) {
+			if (!Files.exists(pathVal)) {
+
+				Files.createDirectory(pathVal);
+				log("Directory created");
+			} else {
+				log("Directory already exists");
+			}
+			Stream<Path> walk = Files.walk(Paths.get(serverFolder + "/"));
 			log("Accessing Server Folder " + serverFolder);
 
 			List<String> fileList = walk.filter(Files::isRegularFile).map(x -> x.getFileName().toString())
 					.collect(Collectors.toList());
-			if (!fileName.trim().equalsIgnoreCase("/")) {
-				fileName = fileName.trim().substring(1);
+			if (!fileName.trim().isEmpty()) {
+//					fileName = fileName.trim().substring(1);
 				String ext = "";
 				if (fileName.indexOf(".") == -1) {
 					System.out.println("contentType ***** " + contentType);
@@ -259,6 +283,8 @@ public class HttpServer {
 					System.out.println("fileRequested ***** " + fileName);
 				}
 
+				System.out.println("File Name : " + fileName);
+				System.out.println("COntains file: " + fileList.contains(fileName));
 				if (fileList.contains(fileName)) {
 					Stream<String> stream = Files.lines(Paths.get(serverFolder + "/" + fileName));
 					fileList = stream.collect(Collectors.toList());
@@ -275,15 +301,21 @@ public class HttpServer {
 				status_code = "200 OK";
 			}
 			sendResponseToClient(out, dataOut, result, status_code, contentType, contentDisposition);
-		} catch (IOException e) {
-			e.printStackTrace();
+
+		} else {
+
+			System.out.println("Paths are unequal.");
+			log("Send Error Response 401");
+			status_code = "401 Access Denied";
+			sendResponseToClient(out, dataOut, result, status_code, contentType, contentDisposition);
+			return;
 		}
-		return result;
+
 	}
 
 	public void sendResponseToClient(PrintWriter out, BufferedOutputStream dataOut, String httpResponse,
 			String status_code, String contentType, String contentDisposition) throws IOException {
-		
+
 		out.println("HTTP/1.0 " + status_code);
 		out.println("Content-length: " + httpResponse.toString().length());
 
@@ -301,8 +333,8 @@ public class HttpServer {
 	}
 
 	static void log(String logMessage) {
-		if (HttpServer.isDebug)
-			System.out.println(logMessage);
+//		if (HttpServer.isDebug)
+		System.out.println(logMessage);
 	}
 
 }
