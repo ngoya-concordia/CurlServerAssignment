@@ -42,11 +42,15 @@ public class HttpServer {
 			HttpServer.serverFolder = serverFolder;
 		if (isDebug)
 			HttpServer.isDebug = true;
+		log("Enable Logs: " + HttpServer.isDebug);
+		log("Port No: " + HttpServer.portNo);
+		log("Server Folder: " + HttpServer.serverFolder);
 		System.out.println("Listening for connection on port : " + HttpServer.portNo);
 		socketServer = new ServerSocket(HttpServer.portNo);
 		while (true) {
 			try {
 				clientSocket = socketServer.accept();
+				log("Recieved Request !!");
 				Thread thread = new Thread(new Runnable() {
 					@Override
 					public void run() {
@@ -74,13 +78,10 @@ public class HttpServer {
 								}
 
 							}
-							System.out.println("content Type request  " + contentType);
-							System.out.println("content Disposition request " + contentDisposition);
 							StringBuilder payload = new StringBuilder();
 							while (reader.ready()) {
 								payload.append((char) reader.read());
 							}
-							log("Pay LOad " + payload);
 
 							if (method.equalsIgnoreCase("GET")) {
 								parseGetRequest(parse, contentType.trim(), contentDisposition);
@@ -114,8 +115,7 @@ public class HttpServer {
 			throws IOException {
 		// TODO Auto-generated method stub
 		String path = parse.nextToken();
-		System.out.println("File Requested " + path);
-		System.out.println("Data " + data);
+		log("Data " + data);
 		String fileName = "";
 		String[] arr = path.split("/");
 		boolean isValid = false;
@@ -123,7 +123,6 @@ public class HttpServer {
 			fileName = arr[arr.length - 1];
 			path = path.replace(fileName, "");
 
-			log("Check Path : " + path);
 			if (path.trim().length() > 0 && path.trim().charAt(path.trim().length() - 1) == '/') {
 				path = path.substring(0, path.length() - 1);
 			}
@@ -137,23 +136,11 @@ public class HttpServer {
 		else
 			newPath = serverFolder;
 		pathVal = Paths.get(newPath);
-
-		System.out.println("NEW PATH VAL " + pathVal.normalize());
-		System.out.println("ORIGINAL PATH VAL " + originalPath.normalize());
-
-//		if (Files.isSameFile(originalPath, pathVal)) {
-//			System.out.println("Paths are same.");
-//			isValid = true;
-//		}
-
-//		else {
 		if (pathVal.normalize().toString().contains(originalPath.normalize().toString())) {
 			isValid = true;
 		} else {
 			isValid = false;
 		}
-//			System.out.println("Paths are unequal.");
-//		}
 		if (isValid) {
 			if (!Files.exists(pathVal)) {
 
@@ -175,6 +162,7 @@ public class HttpServer {
 						log("creating the new file ");
 						writeToFile(newPath, fileName, data);
 					}
+					log("Request Successful");
 					sendResponseToClient(out, dataOut, data, "200 OK", "", "");
 				} else {
 					sendResponseToClient(out, dataOut, "", "400 Bad Request", "", "");
@@ -184,7 +172,6 @@ public class HttpServer {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-
 		} else {
 			sendResponseToClient(out, dataOut, "", "401 Access Denied", "", "");
 			log("Access Denied");
@@ -209,9 +196,6 @@ public class HttpServer {
 		}
 	}
 
-	// httpc post -v -h Content-Type:application/json -h Connection:Keep-Alive -d
-	// '{"name":"game_name", "publisher":"PUBLISHER","pubished_in":"YEAR"}'
-	// "http://192.168.2.28/test.txt"
 	public void parseGetRequest(StringTokenizer parse, String contentType, String contentDisposition)
 			throws IOException {
 		boolean isValid = false;
@@ -225,7 +209,6 @@ public class HttpServer {
 			fileName = arr[arr.length - 1];
 			path = path.replace(fileName, "");
 
-			log("Check Path : " + path);
 			if (path.trim().length() > 0 && path.trim().charAt(path.trim().length() - 1) == '/') {
 				path = path.substring(0, path.length() - 1);
 			}
@@ -247,22 +230,19 @@ public class HttpServer {
 		}
 		if (isValid) {
 			if (!Files.exists(pathVal)) {
-
 				Files.createDirectory(pathVal);
 				log("Directory created");
 			} else {
 				log("Directory already exists");
 			}
-			Stream<Path> walk = Files.walk(Paths.get(serverFolder + "/"));
-			log("Accessing Server Folder " + serverFolder);
+			Stream<Path> walk = Files.walk(Paths.get(pathVal.normalize().toString() + "/"));
+			log("Accessing Folder " + serverFolder);
 
 			List<String> fileList = walk.filter(Files::isRegularFile).map(x -> x.getFileName().toString())
 					.collect(Collectors.toList());
 			if (!fileName.trim().isEmpty()) {
-//					fileName = fileName.trim().substring(1);
 				String ext = "";
 				if (fileName.indexOf(".") == -1) {
-					System.out.println("contentType ***** " + contentType);
 
 					if (contentType.equalsIgnoreCase("application/json"))
 						ext = "json";
@@ -280,21 +260,18 @@ public class HttpServer {
 						ext = "csv";
 
 					fileName = fileName + "." + ext;
-					System.out.println("fileRequested ***** " + fileName);
 				}
 
-				System.out.println("File Name : " + fileName);
-				System.out.println("COntains file: " + fileList.contains(fileName));
 				if (fileList.contains(fileName)) {
 					Stream<String> stream = Files.lines(Paths.get(serverFolder + "/" + fileName));
 					fileList = stream.collect(Collectors.toList());
 					result = fileList.toString();
 					status_code = "200 OK";
+					log("Request is successful.");
 				} else {
 					log("Send Error Response 404");
 					status_code = "404 Not Found";
 				}
-				log("\n\n fileRequested " + fileName);
 			} else {
 
 				result = fileList.toString();
@@ -304,7 +281,6 @@ public class HttpServer {
 
 		} else {
 
-			System.out.println("Paths are unequal.");
 			log("Send Error Response 401");
 			status_code = "401 Access Denied";
 			sendResponseToClient(out, dataOut, result, status_code, contentType, contentDisposition);
@@ -316,6 +292,7 @@ public class HttpServer {
 	public void sendResponseToClient(PrintWriter out, BufferedOutputStream dataOut, String httpResponse,
 			String status_code, String contentType, String contentDisposition) throws IOException {
 
+		log("Sending response to client");
 		out.println("HTTP/1.0 " + status_code);
 		out.println("Content-length: " + httpResponse.toString().length());
 
@@ -325,7 +302,7 @@ public class HttpServer {
 		if (!contentDisposition.isEmpty()) {
 			out.println("Content-Disposition: " + contentDisposition);
 		}
-		out.println(); // blank line
+		out.println();
 		out.flush();
 
 		dataOut.write(httpResponse.toString().getBytes("UTF-8"));
@@ -333,8 +310,8 @@ public class HttpServer {
 	}
 
 	static void log(String logMessage) {
-//		if (HttpServer.isDebug)
-		System.out.println(logMessage);
+		if (HttpServer.isDebug)
+			System.out.println(logMessage);
 	}
 
 }

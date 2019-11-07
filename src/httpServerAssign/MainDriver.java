@@ -21,7 +21,6 @@ public class MainDriver {
 				String[] str = input.split(" -");
 
 				for (String s : str) {
-					System.out.println(s);
 					String[] test = s.split(" ");
 					String key = test[0].trim();
 					String value = "";
@@ -39,9 +38,6 @@ public class MainDriver {
 					}
 				}
 
-				System.out.println("isDebug : " + isDebug);
-				System.out.println("portNo : " + portNo);
-				System.out.println("serverFolder : " + serverFolder);
 				HttpServer httpServer = null;
 				try {
 					if (portNo > 0 || serverFolder.trim().length() > 0 || isDebug)
